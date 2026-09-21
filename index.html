@@ -188,10 +188,15 @@
 
 </div>
 
-<script type="module">
-  import * as pdfjsLibModule from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.min.mjs';
-  window.pdfjsLib = pdfjsLibModule;
-  pdfjsLibModule.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.worker.min.mjs';
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.13.216/legacy/build/pdf.min.js"></script>
+<script>
+  // Classic (non-module) build + classic Worker on purpose: Safari has a long
+  // history of bugs with ES-module workers loaded cross-origin (from a CDN),
+  // which silently breaks PDF reading there while Chrome works fine. This
+  // older build ships a plain classic worker script, which every browser
+  // (including Safari/iOS) has supported reliably for years.
+  window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@2.13.216/legacy/build/pdf.worker.min.js';
   window.dispatchEvent(new Event('pdfjs-ready'));
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
