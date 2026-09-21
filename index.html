@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Muscle Concrete Contract Hub</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --panel: #ffffff;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --border: #dcd9d3;
+    --accent: #7a1f1f;
+    --accent-text: #ffffff;
+    --field-bg: #fbfaf8;
+    --err: #b3261e;
+    --ok: #2f6b3a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181d;
+      --panel: #1f232a;
+      --text: #e9e8e6;
+      --muted: #9aa0aa;
+      --border: #34383f;
+      --accent: #c2483f;
+      --accent-text: #16181d;
+      --field-bg: #23272e;
+      --err: #ff6b60;
+      --ok: #6fce85;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16181d;
+    --panel: #1f232a;
+    --text: #e9e8e6;
+    --muted: #9aa0aa;
+    --border: #34383f;
+    --accent: #c2483f;
+    --accent-text: #16181d;
+    --field-bg: #23272e;
+    --err: #ff6b60;
+    --ok: #6fce85;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 20px 14px 60px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.92rem; margin-bottom: 20px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .panel h2 { font-size: 1.02rem; margin: 0 0 12px; }
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 26px 14px;
+    text-align: center;
+    color: var(--muted);
+  }
+  input[type="file"] { margin-top: 10px; max-width: 100%; }
+  .status { min-height: 1.2em; margin-top: 12px; font-size: 0.92rem; color: var(--muted); }
+  .status.err { color: var(--err); font-weight: 600; }
+  #reviewSection { display: none; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+  .field.wide { grid-column: 1 / -1; }
+  .field input[type="text"], .field select {
+    background: var(--field-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 9px;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+  .tristate .radiogroup { display: flex; gap: 14px; align-items: center; }
+  .tristate .radiogroup label { color: var(--text); font-size: 0.9rem; }
+  table#lineItemsTable { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.86rem; }
+  table#lineItemsTable th { text-align: left; color: var(--muted); font-weight: 600; padding: 4px 6px; font-size: 0.78rem; }
+  table#lineItemsTable td { padding: 4px 6px; vertical-align: top; }
+  table#lineItemsTable textarea.desc {
+    width: 100%; min-height: 34px; resize: vertical;
+    background: var(--field-bg); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 6px; font-size: 0.86rem; font-family: inherit;
+  }
+  table#lineItemsTable input.qty { width: 46px; background: var(--field-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px; }
+  table#lineItemsTable input.price { width: 92px; background: var(--field-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px; }
+  .linkbtn { background: none; border: none; color: var(--err); cursor: pointer; font-size: 1rem; padding: 4px; }
+  #rowCount { font-size: 0.8rem; color: var(--muted); }
+  #rowCount.err { color: var(--err); font-weight: 600; }
+  .row-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  button.primary {
+    background: var(--accent); color: var(--accent-text); border: none;
+    border-radius: 9px; padding: 12px 18px; font-size: 1rem; font-weight: 600;
+    cursor: pointer; width: 100%; margin-top: 6px;
+  }
+  button.primary:disabled { opacity: 0.5; cursor: default; }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 12px; font-size: 0.85rem; cursor: pointer;
+  }
+  #fallbackLinks a { display: inline-block; margin-top: 10px; color: var(--accent); }
+  .note { font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
+
+  #fillerView { display: none; }
+  .backbtn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 0.88rem; padding: 4px 0; margin-bottom: 10px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .backbtn:hover { color: var(--text); }
+  #fillerList { display: flex; flex-direction: column; gap: 10px; }
+  .fillerCard {
+    display: flex; align-items: center; gap: 14px; text-align: left;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; cursor: pointer; font-family: inherit; color: var(--text); width: 100%;
+  }
+  .fillerCard:hover { border-color: var(--accent); }
+  .fillerEmoji { font-size: 1.8rem; flex: 0 0 auto; }
+  .fillerText { display: flex; flex-direction: column; gap: 2px; }
+  .fillerName { font-weight: 600; font-size: 1rem; }
+  .fillerDesc { color: var(--muted); font-size: 0.85rem; }
+  .hub-empty-note { color: var(--muted); font-size: 0.85rem; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="hubView">
+    <h1>🏗️ Muscle Concrete Contract Hub</h1>
+    <div class="sub">Tools that auto-fill a manufacturer's contract from a completed CCI / TOL / Five Star quote — for manufacturers that aren't wired into Sensei. Runs entirely in your browser; nothing is uploaded anywhere.</div>
+    <div id="fillerList"></div>
+    <div class="hub-empty-note">More manufacturers get added here over time — nothing to do but pick one above.</div>
+  </div>
+
+  <div id="fillerView">
+    <button type="button" class="backbtn" id="backBtn">← Back to hub</button>
+    <h1 id="fillerTitle"></h1>
+    <div class="sub" id="fillerSub"></div>
+
+    <div class="panel">
+      <h2>1. Upload the source quote</h2>
+      <div class="dropzone">
+        Upload the completed manufacturer quote (PDF)
+        <div><input id="fileInput" type="file" accept="application/pdf"></div>
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="panel" id="reviewSection">
+      <h2>2. Review &amp; fix anything before generating</h2>
+
+      <h2 style="margin-top:4px;font-size:0.9rem;color:var(--muted)">Customer</h2>
+      <div class="grid" id="customerFields"></div>
+
+      <h2 style="margin-top:16px;font-size:0.9rem;color:var(--muted)">Building</h2>
+      <div class="grid" id="buildingFields"></div>
+
+      <h2 style="margin-top:16px;font-size:0.9rem;color:var(--muted)">Line items</h2>
+      <table id="lineItemsTable">
+        <thead><tr><th style="width:60%">Description</th><th>Qty</th><th>Price</th><th></th></tr></thead>
+        <tbody id="lineItemsBody"></tbody>
+      </table>
+      <div class="row-controls">
+        <button type="button" class="secondary" id="addRowBtn">+ Add row</button>
+        <span id="rowCount"></span>
+      </div>
+      <div class="note" id="rowsNote"></div>
+
+      <h2 style="margin-top:16px;font-size:0.9rem;color:var(--muted)">Totals</h2>
+      <div class="grid" id="totalsFields"></div>
+
+      <button class="primary" id="generateBtn" disabled>Generate PDF</button>
+      <div id="fallbackLinks"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+  import * as pdfjsLibModule from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.min.mjs';
+  window.pdfjsLib = pdfjsLibModule;
+  pdfjsLibModule.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.worker.min.mjs';
+  window.dispatchEvent(new Event('pdfjs-ready'));
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+// ---------------------------------------------------------------------
+// Standalone source-contract parser — ported from the validated Python
+// prototype. Works entirely offline via pdf.js text-content extraction;
+// no network calls, no Claude capability required.
+// ---------------------------------------------------------------------
+
+const ALL_LABELS = [
+  "NAME:", "INSTALL ADDRESS:", "CITY:", "STATE:", "ZIP CODE:", "EMAIL:",
+  "COUNTY:", "CELL:", "PHONE:", "BUILDING TYPE", "ROOF STYLE", "WIDTH",
+  "LENGTH", "HEIGHT", "FRAME GAUGE", "COLORS", "SIDES & ENDS", "TRIM",
+  "DESCRIPTION", "QTY", "PRICE", "TOTAL COST INFORMATION", "SUBTOTAL",
+  "TAX", "TOTAL PRICE", "DOWN PAYMENT", "SERVICE FEE", "DEALER COLLECTED",
+  "TOTAL DEPOSIT", "LABOR FEE", "BALANCE DUE", "INSTALLATION SURFACE?",
+  "ORDER DATE:", "CONTRACT #", "AUTHORIZED", "DEALER NAME",
+  "SALES REPRESENTATIVE", "PURCHASE AGREEMENT", "PURCHASE ORDER",
+  "PROCESS OF ORDER", "IS YOUR SURFACE LEVEL?", "READY FOR INSTALLATION?",
+  "ELECTRICITY AVAILABLE?", "PERMIT REQUIRED", "NOTES:", "WAINSCOT",
+];
+const LABEL_SEQS = ALL_LABELS.map((l) => l.split(/\s+/));
+
+function norm(t) { return t.toUpperCase().replace(/:$/, ''); }
+
+function matchesLabelAt(wordsSorted, idx) {
+  for (const seq of LABEL_SEQS) {
+    const n = seq.length;
+    if (idx + n > wordsSorted.length) continue;
+    let ok = true;
+    for (let j = 0; j < n; j++) {
+      if (norm(wordsSorted[idx + j].text) !== norm(seq[j])) { ok = false; break; }
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
+// ---- Build a pdfplumber-like "words" array from a pdf.js page ----
+async function getWordsForPage(page) {
+  const content = await page.getTextContent();
+  const viewport = page.getViewport({ scale: 1 });
+  const pageHeight = viewport.height;
+  const words = [];
+
+  for (const item of content.items) {
+    const str = item.str;
+    if (!str || !str.trim()) continue;
+    const x0item = item.transform[4];
+    const yBase = item.transform[5];
+    const w = item.width || 0;
+    const h = item.height || (Math.hypot(item.transform[2], item.transform[3]) || 10);
+    const totalLen = str.length;
+
+    // Split on whitespace, keep track of character offsets to distribute x proportionally.
+    const re = /\S+/g;
+    let m;
+    while ((m = re.exec(str)) !== null) {
+      const c0 = m.index;
+      const c1 = m.index + m[0].length;
+      const wx0 = x0item + w * (totalLen ? c0 / totalLen : 0);
+      const wx1 = x0item + w * (totalLen ? c1 / totalLen : 1);
+      // bottom-up PDF y -> pdfplumber-style top-down
+      const yTop = pageHeight - (yBase + h);
+      const yBottom = pageHeight - yBase;
+      words.push({
+        text: m[0],
+        x0: wx0, x1: wx1,
+        top: yTop, bottom: yBottom,
+        ymid: (yTop + yBottom) / 2,
+      });
+    }
+  }
+  return words;
+}
+
+function findLabelPositions(words, labelText) {
+  const rawToks = labelText.split(/\s+/);
+  const n = rawToks.length;
+  const ws = [...words].sort((a, b) => (Math.round(a.ymid) - Math.round(b.ymid)) || (a.x0 - b.x0));
+  const out = [];
+  for (let i = 0; i <= ws.length - n; i++) {
+    let ok = true;
+    for (let j = 0; j < n; j++) {
+      if (norm(ws[i + j].text) !== norm(rawToks[j])) { ok = false; break; }
+    }
+    if (ok) out.push(ws.slice(i, i + n));
+  }
+  return out;
+}
+
+function extractValueAfter(words, labelWords, opts = {}) {
+  const yTol = opts.yTol ?? 4;
+  const maxGap = opts.maxGap ?? 65;
+  const maxTokens = opts.maxTokens ?? 14;
+  const last = labelWords[labelWords.length - 1];
+  const ymid = labelWords.reduce((s, w) => s + w.ymid, 0) / labelWords.length;
+  const xEnd = last.x1;
+  const candidates = words
+    .filter((w) => Math.abs(w.ymid - ymid) <= yTol && w.x0 > xEnd - 0.5)
+    .sort((a, b) => a.x0 - b.x0);
+  const out = [];
+  let prevX1 = xEnd;
+  for (let i = 0; i < candidates.length; i++) {
+    const w = candidates[i];
+    const gap = w.x0 - prevX1;
+    if (gap > maxGap) break;
+    if (matchesLabelAt(candidates, i)) break;
+    out.push(w.text);
+    prevX1 = w.x1;
+    if (out.length >= maxTokens) break;
+  }
+  return out.join(' ').trim();
+}
+
+function getField(words, label, opts = {}) {
+  const occ = findLabelPositions(words, label);
+  if (!occ.length) return '';
+  return extractValueAfter(words, occ[0], opts);
+}
+
+function declue(s) {
+  return s.replace(/([a-z])(?=[A-Z])/g, '$1 ');
+}
+
+function findTableBounds(words) {
+  let topY = null, botY = null;
+  for (const w of words) {
+    if (w.text.toUpperCase() === 'DESCRIPTION' && w.x0 < 150) topY = w.bottom;
+    if (w.text.toUpperCase() === 'PURCHASE' && topY != null && w.top > topY) {
+      if (botY === null || w.top < botY) botY = w.top;
+    }
+  }
+  return [topY, botY];
+}
+
+function extractLineItems(words) {
+  const [topY, botY] = findTableBounds(words);
+  if (topY == null || botY == null) return [];
+  const region = words.filter((w) => w.top > topY && w.top < botY);
+
+  const qtyWords = region.filter((w) => w.x0 >= 265 && w.x0 <= 300 && /^\d+$/.test(w.text));
+  const priceWords = region.filter((w) => w.x0 >= 295 && w.x0 <= 400 && /^\(?\$/.test(w.text));
+  const descWords = region.filter((w) => w.x0 < 265);
+
+  const rows = qtyWords
+    .slice()
+    .sort((a, b) => a.top - b.top)
+    .map((qw) => ({ y: qw.top, qty: qw.text, price: '', descWords: [] }));
+
+  function assignRow(wordTop, tol = 3) {
+    let best = null;
+    for (const r of rows) {
+      if (r.y <= wordTop + tol && (best === null || r.y > best.y)) best = r;
+    }
+    return best;
+  }
+
+  for (const pw of priceWords) {
+    const r = assignRow(pw.top);
+    if (r) r.price = (r.price + ' ' + pw.text).trim();
+  }
+
+  const lastRowY = rows.length ? Math.max(...rows.map((r) => r.y)) : -1;
+  const leftover = [];
+  for (const dw of [...descWords].sort((a, b) => a.top - b.top || a.x0 - b.x0)) {
+    if (dw.top > lastRowY + 6) { leftover.push(dw); continue; }
+    const r = assignRow(dw.top);
+    if (r) r.descWords.push(dw);
+  }
+
+  leftover.sort((a, b) => a.top - b.top || a.x0 - b.x0);
+  const extraRows = [];
+  let cur = [], curTop = null;
+  for (const w of leftover) {
+    if (curTop === null || Math.abs(w.top - curTop) <= 3) { cur.push(w); if (curTop === null) curTop = w.top; }
+    else { extraRows.push(cur); cur = [w]; curTop = w.top; }
+  }
+  if (cur.length) extraRows.push(cur);
+
+  const out = [];
+  for (const r of rows) {
+    const dws = r.descWords.slice().sort((a, b) => (Math.round(a.top) - Math.round(b.top)) || (a.x0 - b.x0));
+    out.push({ description: declue(dws.map((w) => w.text).join(' ').trim()), qty: r.qty, price: r.price });
+  }
+  for (const cluster of extraRows) {
+    const desc = declue(cluster.slice().sort((a, b) => a.x0 - b.x0).map((w) => w.text).join(' ').trim());
+    out.push({ description: desc, qty: '', price: '' });
+  }
+  return out;
+}
+
+function splitMoney(s) {
+  const pct = s.match(/(\d+(?:\.\d+)?)\s*%/);
+  const dollar = s.match(/\(?\$[\d,]+\.\d{2}\)?/);
+  return [pct ? pct[1] : '', dollar ? dollar[0] : ''];
+}
+
+function parseColorsLine(words) {
+  const occ = findLabelPositions(words, 'COLORS');
+  if (!occ.length) return '';
+  const last = occ[0][occ[0].length - 1];
+  const cands = words
+    .filter((w) => Math.abs(w.ymid - last.ymid) <= 4 && w.x0 > last.x1 - 0.5)
+    .sort((a, b) => a.x0 - b.x0);
+  return declue(cands.map((w) => w.text).join(' '));
+}
+
+function detectFrameGauge(words) {
+  const checkMarks = words.filter((w) => ['✔', '✓', 'X'].includes(w.text));
+  const fourteen = words.filter((w) => w.text === '14' && w.top > 260 && w.top < 300);
+  const twelve = words.filter((w) => w.text === '12' && w.top > 260 && w.top < 300);
+  for (const cm of checkMarks) {
+    for (const w of fourteen) {
+      if (Math.abs(cm.ymid - w.ymid) < 6 && (w.x0 - cm.x1) > 0 && (w.x0 - cm.x1) < 25) return '14';
+    }
+    for (const w of twelve) {
+      if (Math.abs(cm.ymid - w.ymid) < 6 && (w.x0 - cm.x1) > 0 && (w.x0 - cm.x1) < 25) return '12';
+    }
+  }
+  return '';
+}
+
+async function parseSourceContract(pdfDoc) {
+  const page = await pdfDoc.getPage(1);
+  const words = await getWordsForPage(page);
+
+  const d = {};
+  d.name = getField(words, 'NAME:');
+  d.install_address = getField(words, 'INSTALL ADDRESS:');
+  d.city = getField(words, 'CITY:', { maxTokens: 1 });
+  d.state = getField(words, 'STATE:', { maxTokens: 1 });
+  d.zip = getField(words, 'ZIP CODE:', { maxTokens: 1 });
+  d.email = getField(words, 'EMAIL:', { maxTokens: 1 });
+  d.county = getField(words, 'COUNTY:');
+  d.cell = getField(words, 'CELL:');
+  d.phone = getField(words, 'PHONE:');
+  d.order_date = getField(words, 'ORDER DATE:', { maxTokens: 1 });
+  d.building_type = declue(getField(words, 'BUILDING TYPE'));
+  d.roof_style = getField(words, 'ROOF STYLE', { maxTokens: 2 });
+  d.width = getField(words, 'WIDTH', { maxTokens: 1 });
+  d.length = getField(words, 'LENGTH', { maxTokens: 1 });
+  d.height = getField(words, 'HEIGHT', { maxTokens: 1 });
+
+  const colorsRaw = parseColorsLine(words);
+  const mRoof = colorsRaw.match(/Roof\s+(.*?)\s+Sides/i);
+  const mSides = colorsRaw.match(/Ends\s+(.*?)\s+Trim/i);
+  const mTrim = colorsRaw.match(/Trim\s+(.*?)(\s+Wainscot|$)/i);
+  const mWain = colorsRaw.match(/Wainscot\s+(.*)$/i);
+  d.color_roof = mRoof ? mRoof[1].trim() : '';
+  d.color_sides_ends = mSides ? mSides[1].trim() : '';
+  d.color_trim = mTrim ? mTrim[1].trim() : '';
+  d.color_wainscot = mWain ? mWain[1].trim() : '';
+
+  d.frame_gauge = detectFrameGauge(words);
+
+  d.subtotal = getField(words, 'SUBTOTAL', { maxTokens: 1 });
+  const taxRaw = getField(words, 'TAX', { maxTokens: 3 });
+  [d.tax_pct, d.tax_amount] = splitMoney(taxRaw);
+  d.total_price = getField(words, 'TOTAL PRICE', { maxTokens: 1 });
+  const dpRaw = getField(words, 'DOWN PAYMENT', { maxTokens: 3 });
+  [d.down_payment_pct, d.deposit_amount] = splitMoney(dpRaw);
+  if (!d.deposit_amount) {
+    d.deposit_amount = getField(words, 'DEALER COLLECTED', { maxTokens: 1 }) || getField(words, 'TOTAL DEPOSIT', { maxTokens: 1 });
+  }
+  d.service_fee = getField(words, 'SERVICE FEE', { maxTokens: 1 });
+  d.labor_fee = getField(words, 'LABOR FEE', { maxTokens: 1 });
+  d.balance_due = getField(words, 'BALANCE DUE', { maxTokens: 1 });
+  d.installation_surface = getField(words, 'Installation Surface?', { maxTokens: 2 });
+
+  d.line_items = extractLineItems(words);
+  return d;
+}
+
+
+</script>
+<script>
+// ---------------------------------------------------------------------
+// Contract Filler Hub — reads a completed CCI / TOL / Five Star quote and
+// fills a blank contract for a manufacturer that isn't wired into Sensei.
+// Each entry in FILLERS is a self-contained target-contract module; add a
+// new one (its blank template + field map) to grow the hub.
+// ---------------------------------------------------------------------
+
+const TOPGOAT_VALID_COLORS = ['Alamo','Black','Blue','Bright White','Brown','Burgundy','Burnished Slate',
+  'Charcoal','Clay','Copper','Crimson Red','Forest Green','Gallery Blue',
+  'Galvalume','Gray','Light Stone','Pewter Gray','Red','Tan'];
+
+const TOPGOAT_FILLER = {
+  id: 'topgoat',
+  emoji: '🐐',
+  name: 'Top Goat Metal Structures',
+  description: 'Fill a Top Goat "Process of Order" contract from a completed CCI / TOL / Five Star quote.',
+  maxRows: 15,
+  validColors: TOPGOAT_VALID_COLORS,
+  templateUrl: '/templates/topgoat-template.pdf',
+
+  // our data key -> the blank template's real PDF field name (/T)
+  headerMap: {
+    name: 'Text-Y0avs-i8Z9',
+    install_address: 'Text-LAwiH4kO5q',
+    city: 'Text-uU6r9x2apC',
+    state: 'Text-bSpfRUhEij',
+    zip: 'Text-ait--Qaqzb',
+    county: 'Text-bi3KCj1pkp',
+    email: 'Text-e2XeS0L08t',
+    cell: 'Text-JjxwfyU0LA',
+    phone: 'Text-QpbE0y02jk',
+    order_date: 'Date-4Il7VhyOPs',
+    building_type: 'Text-5SWPB7HlfR',
+    width: 'Text-DleF9zcuBZ',
+    length: 'Text-HPC4ADOvxV',
+    height: 'Text-Ifz7aGiIak',
+    roof_style: 'Text-1r982Pd_in',
+    installation_surface: 'Text-kXXbcdBm-Q',
+  },
+  totalsMap: {
+    subtotal: 'Text-GSqqmoDBe8',
+    tax_amount: 'Text-XC56N2U5aw',
+    total_price: 'Text-LFAtK2GSH5',
+    down_payment_pct: 'Text-SQYNQ9m-pU',
+    service_fee: 'Text-UJG510vhYi',
+    deposit_amount: 'Text-q0g3SETGeZ',
+    labor_fee: 'Text-6KaRw8yxs4',
+    balance_due: 'Text-Gdu7UJ63Vd',
+  },
+  dropdownMap: {
+    color_roof: 'Dropdown-czzAnfwOXD',
+    color_sides_ends: 'Dropdown-hbyksqSHv',
+    color_trim: 'Dropdown-HsjH-eCzf',
+  },
+  checkboxes: {
+    gauge14: 'CheckBox-aZblgRY3Xn',
+    gauge12: 'CheckBox-mWdI-ol29M',
+    surfaceYes: 'CheckBox-Z0y_405moI',
+    surfaceNo: 'CheckBox-r6-FuHF_9D',
+    readyYes: 'CheckBox-Z0jbevEvHA',
+    readyNo: 'CheckBox-wJtZtmByTw',
+    elecYes: 'CheckBox-z7wr5_LB1C',
+    elecNo: 'CheckBox-rq181bIOJD',
+  },
+  // 15 rows, top to bottom: [description, qty, price] field names
+  rowFields: [
+    ['Text-ws454itV5C','Text-kfJOdP95hq','Text-9gcNHVm28c'],
+    ['Text-NYe_8F8g96','Text-hKAn18ffJc','Text-URUU7CIukK'],
+    ['Text-nvsDWvpQyG','Text-QlWqwHRFMQ','Text-HHPhGk5qas'],
+    ['Text-A2e6iSobIQ','Text-enueGc3ui0','Text-7ftZtSE1Pp'],
+    ['Text-Yk5Z9X-DVp','Text-b_B1wKZhuk','Text-kB4RQzeYeQ'],
+    ['Text-18JOhE37la','Text-DED1TQKe2V','Text-mvxT1phRQm'],
+    ['Text-jzb4XBJBbs','Text-tGhu_K0iXB','Text-ZfJYvYxbLn'],
+    ['Text-uNJJBmdhoK','Text-vTieVewDsM','Text-XTrBaOg3vA'],
+    ['Text-NjF6_jN079','Text--LL6YsWOSd','Text-Nm0wDF3gNP'],
+    ['Text-6-z6U37UFX','Text-Knk_EdLfKF','Text-Rcy91hzndh'],
+    ['Text-mMdjrB74Zc','Text-0Md2WtTrM9','Text-Op-_uW-rps'],
+    ['Text-TG608GHZnw','Text-abcUPTbTzg','Text-mqD_aXMr-s'],
+    ['Text-D5-vQ6ywHZ','Text-vSnebebPKN','Text-LfgwxS-OVy'],
+    ['Text-cb7OJJ57fh','Text-DvhIiAwyrN','Text-wIgOq40cIJ'],
+    ['Text-5LihpypMF6','Text-4-FWXgcfaC','Text-6DD6DJBvOC'],
+  ],
+};
+
+// Add more manufacturers here as their blank templates get built — the hub
+// list and the whole filler flow below are driven entirely by this array.
+const FILLERS = [TOPGOAT_FILLER];
+
+let activeFiller = null;
+
+let state = {
+  sourceBytes: null,
+  sourceFilename: '',
+  buildingViewPageIndices: [],
+  numPages: 0,
+  data: null,
+};
+
+function $(sel) { return document.querySelector(sel); }
+function el(tag, props = {}, children = []) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'dataset') {
+      Object.assign(e.dataset, v);
+    } else {
+      e[k] = v;
+    }
+  }
+  for (const c of [].concat(children)) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  return e;
+}
+
+function setStatus(msg, isError) {
+  const s = $('#status');
+  s.textContent = msg || '';
+  s.className = isError ? 'status err' : 'status';
+}
+
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+// ---- PDF.js helpers ----
+
+function readFileAsArrayBuffer(file) {
+  // Older WebKit/Safari builds (common on iPhones) don't support the newer
+  // Blob.prototype.arrayBuffer() promise method, so use FileReader instead —
+  // it has been supported everywhere for a very long time.
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Could not read the selected file.'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function readPdf(arrayBuffer) {
+  if (!window.pdfjsLib || typeof pdfjsLib.getDocument !== 'function') {
+    throw new Error('the PDF-reading library has not finished loading in this browser — wait a few seconds and try again, or reload the page');
+  }
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  return await loadingTask.promise;
+}
+
+async function findBuildingViewPages(pdfDoc) {
+  const idxs = [];
+  for (let i = 1; i <= pdfDoc.numPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items.map((it) => it.str).join(' ').toUpperCase();
+    if (text.includes('BUILDING VIEW')) idxs.push(i - 1); // 0-based for pdf-lib
+  }
+  return idxs;
+}
+
+// ---- Main flow ----
+
+async function handleFile(file) {
+  setStatus('Reading PDF…');
+  $('#generateBtn').disabled = true;
+  $('#reviewSection').style.display = 'none';
+
+  let rawData = null;
+  try {
+    const arrayBuffer = await readFileAsArrayBuffer(file);
+    state.sourceBytes = new Uint8Array(arrayBuffer);
+    state.sourceFilename = file.name;
+
+    const pdfDoc = await readPdf(arrayBuffer.slice(0));
+    state.numPages = pdfDoc.numPages;
+
+    setStatus('Finding building-view photo pages…');
+    state.buildingViewPageIndices = await findBuildingViewPages(pdfDoc);
+
+    setStatus('Reading the quote…');
+    rawData = await parseSourceContract(pdfDoc);
+  } catch (err) {
+    console.error(err);
+    setStatus('Could not read the quote automatically (' + err.message + '). You can still fill in the fields by hand below and generate.', true);
+    rawData = {};
+  }
+
+  try {
+    state.data = normalizeData(rawData);
+    renderReviewForm(state.data);
+    $('#reviewSection').style.display = 'block';
+    $('#generateBtn').disabled = false;
+    if (rawData && Object.keys(rawData).length) {
+      setStatus(`Read the quote (${state.buildingViewPageIndices.length} building-view page(s) found). Double-check everything below, then generate.`);
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus('The quote was read, but the review screen hit an error building itself: ' + err.message, true);
+  }
+}
+
+function normalizeData(d) {
+  const out = {
+    name:'', install_address:'', city:'', state:'', zip:'', email:'', county:'', cell:'', phone:'',
+    order_date:'', building_type:'', width:'', length:'', height:'', roof_style:'',
+    frame_gauge:'', color_roof:'', color_sides_ends:'', color_trim:'', installation_surface:'',
+    subtotal:'', tax_amount:'', total_price:'', down_payment_pct:'', deposit_amount:'',
+    service_fee:'', labor_fee:'', balance_due:'',
+    surface_level: '', ready_install: '', electricity: '',
+    line_items: [],
+  };
+  for (const k of Object.keys(out)) {
+    if (k === 'line_items') continue;
+    if (d && typeof d[k] === 'string') out[k] = d[k];
+    else if (d && typeof d[k] === 'number') out[k] = String(d[k]);
+  }
+  if (d && Array.isArray(d.line_items)) {
+    out.line_items = d.line_items.map((it) => ({
+      description: (it && it.description) || '',
+      qty: (it && it.qty != null) ? String(it.qty) : '',
+      price: (it && it.price != null) ? String(it.price) : '',
+    }));
+  }
+  while (out.line_items.length < 15) out.line_items.push({ description: '', qty: '', price: '' });
+  return out;
+}
+
+function fieldRow(label, key, value, size) {
+  const input = el('input', { type: 'text', value: value || '', dataset: { key } });
+  const wrap = el('label', { className: 'field ' + (size || '') }, [el('span', {textContent: label}), input]);
+  return wrap;
+}
+
+function colorSelect(label, key, value) {
+  const select = el('select', { dataset: { key } });
+  select.appendChild(el('option', { value: '', textContent: '(choose)' }));
+  let matched = false;
+  for (const c of activeFiller.validColors) {
+    const opt = el('option', { value: c, textContent: c });
+    if (value && c.toLowerCase() === String(value).trim().toLowerCase()) { opt.selected = true; matched = true; }
+    select.appendChild(opt);
+  }
+  if (value && !matched) {
+    const opt = el('option', { value: value, textContent: value + ' (not a listed color — please pick one)' });
+    select.appendChild(opt);
+  }
+  return el('label', { className: 'field' }, [el('span', {textContent: label}), select]);
+}
+
+function triStateRadio(label, key, value) {
+  const wrap = el('div', { className: 'field tristate' });
+  wrap.appendChild(el('span', { textContent: label }));
+  const group = el('div', { className: 'radiogroup' });
+  for (const opt of [['', 'Leave blank'], ['yes', 'Yes'], ['no', 'No']]) {
+    const id = key + '_' + (opt[0] || 'blank');
+    const radio = el('input', { type: 'radio', name: key, id, value: opt[0] });
+    if ((value || '') === opt[0]) radio.checked = true;
+    const lab = el('label', { htmlFor: id, textContent: opt[1] });
+    group.appendChild(radio);
+    group.appendChild(lab);
+  }
+  wrap.appendChild(group);
+  return wrap;
+}
+
+function renderReviewForm(data) {
+  const c = $('#customerFields');
+  c.innerHTML = '';
+  c.appendChild(fieldRow('Name', 'name', data.name));
+  c.appendChild(fieldRow('Install address', 'install_address', data.install_address, 'wide'));
+  c.appendChild(fieldRow('City', 'city', data.city));
+  c.appendChild(fieldRow('State', 'state', data.state));
+  c.appendChild(fieldRow('Zip', 'zip', data.zip));
+  c.appendChild(fieldRow('Email', 'email', data.email, 'wide'));
+  c.appendChild(fieldRow('County', 'county', data.county));
+  c.appendChild(fieldRow('Cell', 'cell', data.cell));
+  c.appendChild(fieldRow('Phone', 'phone', data.phone));
+  c.appendChild(fieldRow('Order date', 'order_date', data.order_date));
+
+  const b = $('#buildingFields');
+  b.innerHTML = '';
+  b.appendChild(fieldRow('Building type', 'building_type', data.building_type, 'wide'));
+  b.appendChild(fieldRow('Roof style', 'roof_style', data.roof_style));
+  b.appendChild(fieldRow('Width', 'width', data.width));
+  b.appendChild(fieldRow('Length', 'length', data.length));
+  b.appendChild(fieldRow('Height', 'height', data.height));
+  const gaugeWrap = el('label', {className: 'field'}, [el('span', {textContent:'Frame gauge'})]);
+  const gaugeSel = el('select', {dataset:{key:'frame_gauge'}});
+  for (const g of [['','(choose)'],['14','14 Gauge'],['12','12 Gauge']]) {
+    const o = el('option',{value:g[0], textContent:g[1]});
+    if ((data.frame_gauge||'') === g[0]) o.selected = true;
+    gaugeSel.appendChild(o);
+  }
+  gaugeWrap.appendChild(gaugeSel);
+  b.appendChild(gaugeWrap);
+  b.appendChild(colorSelect('Roof color', 'color_roof', data.color_roof));
+  b.appendChild(colorSelect('Sides & ends color', 'color_sides_ends', data.color_sides_ends));
+  b.appendChild(colorSelect('Trim color', 'color_trim', data.color_trim));
+  b.appendChild(fieldRow('Installation surface', 'installation_surface', data.installation_surface));
+  b.appendChild(triStateRadio('Is the surface level?', 'surface_level', data.surface_level));
+  b.appendChild(triStateRadio('Ready for installation?', 'ready_install', data.ready_install));
+  b.appendChild(triStateRadio('Electricity available?', 'electricity', data.electricity));
+
+  const t = $('#totalsFields');
+  t.innerHTML = '';
+  t.appendChild(fieldRow('Subtotal', 'subtotal', data.subtotal));
+  t.appendChild(fieldRow('State tax ($)', 'tax_amount', data.tax_amount));
+  t.appendChild(fieldRow('Total price', 'total_price', data.total_price));
+  t.appendChild(fieldRow('Down payment (%)', 'down_payment_pct', data.down_payment_pct));
+  t.appendChild(fieldRow('Total deposit ($)', 'deposit_amount', data.deposit_amount));
+  t.appendChild(fieldRow('Service fee', 'service_fee', data.service_fee));
+  t.appendChild(fieldRow('Labor fee', 'labor_fee', data.labor_fee));
+  t.appendChild(fieldRow('Balance due', 'balance_due', data.balance_due));
+
+  renderLineItems(data.line_items);
+}
+
+function renderLineItems(items) {
+  const tbody = $('#lineItemsBody');
+  tbody.innerHTML = '';
+  items.slice(0, activeFiller.maxRows).forEach((it, i) => addLineItemRow(it, i));
+  updateRowCount();
+}
+
+function addLineItemRow(it, idx) {
+  const tbody = $('#lineItemsBody');
+  const tr = el('tr');
+  const descTd = el('td');
+  const descInput = el('textarea', { rows: 1, className: 'desc', value: it.description || '' });
+  descTd.appendChild(descInput);
+  const qtyTd = el('td');
+  const qtyInput = el('input', { type: 'text', className: 'qty', value: it.qty || '' });
+  qtyTd.appendChild(qtyInput);
+  const priceTd = el('td');
+  const priceInput = el('input', { type: 'text', className: 'price', value: it.price || '' });
+  priceTd.appendChild(priceInput);
+  const actTd = el('td');
+  const delBtn = el('button', { type: 'button', className: 'linkbtn', textContent: '✕' });
+  delBtn.onclick = () => { tr.remove(); updateRowCount(); };
+  actTd.appendChild(delBtn);
+  tr.appendChild(descTd); tr.appendChild(qtyTd); tr.appendChild(priceTd); tr.appendChild(actTd);
+  tbody.appendChild(tr);
+}
+
+function updateRowCount() {
+  const n = $('#lineItemsBody').children.length;
+  const max = activeFiller.maxRows;
+  $('#rowCount').textContent = n + ' / ' + max + ' rows';
+  $('#addRowBtn').disabled = n >= max;
+  $('#rowCount').className = n > max ? 'err' : '';
+}
+
+function collectFormData() {
+  const data = { line_items: [] };
+  document.querySelectorAll('[data-key]').forEach((input) => {
+    data[input.dataset.key] = input.value;
+  });
+  document.querySelectorAll('#lineItemsBody tr').forEach((tr) => {
+    const desc = tr.querySelector('.desc').value.trim();
+    const qty = tr.querySelector('.qty').value.trim();
+    const price = tr.querySelector('.price').value.trim();
+    if (desc || qty || price) data.line_items.push({ description: desc, qty, price });
+  });
+  ['surface_level','ready_install','electricity'].forEach((k) => {
+    const checked = document.querySelector(`input[name="${k}"]:checked`);
+    data[k] = checked ? checked.value : '';
+  });
+  return data;
+}
+
+async function generatePdf() {
+  setStatus('Building the ' + activeFiller.name + ' PDF…');
+  $('#generateBtn').disabled = true;
+  try {
+    const data = collectFormData();
+    if (data.line_items.length > activeFiller.maxRows) {
+      setStatus(`You have more than ${activeFiller.maxRows} line items — this form only has ${activeFiller.maxRows} rows. Please combine or remove rows above before generating.`, true);
+      $('#generateBtn').disabled = false;
+      return;
+    }
+
+    if (!window.PDFLib) {
+      throw new Error('the PDF-filling library has not finished loading in this browser — reload the page and try again');
+    }
+    let templateBytes;
+    try {
+      const resp = await fetch(activeFiller.templateUrl);
+      if (!resp.ok) throw new Error('server returned ' + resp.status);
+      templateBytes = new Uint8Array(await resp.arrayBuffer());
+    } catch (e) {
+      throw new Error('could not load the blank ' + activeFiller.name + ' template (' + e.message + ')');
+    }
+    const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
+    const form = pdfDoc.getForm();
+
+    const setText = (fieldName, value) => {
+      if (!value) return;
+      try {
+        const f = form.getTextField(fieldName);
+        f.setText(String(value));
+        f.setFontSize(8);
+      } catch (e) { console.warn('text field missing', fieldName, e); }
+    };
+    const setDropdown = (fieldName, value) => {
+      if (!value) return;
+      try { form.getDropdown(fieldName).select(value); } catch (e) { console.warn('dropdown missing', fieldName, e); }
+    };
+    const setCheck = (fieldName, on) => {
+      try {
+        const f = form.getCheckBox(fieldName);
+        if (on) f.check(); else f.uncheck();
+      } catch (e) { console.warn('checkbox missing', fieldName, e); }
+    };
+
+    const { headerMap, totalsMap, dropdownMap, checkboxes, rowFields } = activeFiller;
+    for (const [key, fname] of Object.entries(headerMap)) setText(fname, data[key]);
+    for (const [key, fname] of Object.entries(totalsMap)) setText(fname, data[key]);
+    for (const [key, fname] of Object.entries(dropdownMap)) setDropdown(fname, data[key]);
+
+    if (data.frame_gauge === '14') { setCheck(checkboxes.gauge14, true); }
+    else if (data.frame_gauge === '12') { setCheck(checkboxes.gauge12, true); }
+    if (data.surface_level === 'yes') setCheck(checkboxes.surfaceYes, true);
+    else if (data.surface_level === 'no') setCheck(checkboxes.surfaceNo, true);
+    if (data.ready_install === 'yes') setCheck(checkboxes.readyYes, true);
+    else if (data.ready_install === 'no') setCheck(checkboxes.readyNo, true);
+    if (data.electricity === 'yes') setCheck(checkboxes.elecYes, true);
+    else if (data.electricity === 'no') setCheck(checkboxes.elecNo, true);
+
+    data.line_items.slice(0, activeFiller.maxRows).forEach((it, i) => {
+      const [descF, qtyF, priceF] = rowFields[i];
+      setText(descF, it.description);
+      setText(qtyF, it.qty);
+      setText(priceF, it.price);
+    });
+
+    // Append building-view / rendering pages from the source PDF, unchanged.
+    if (state.sourceBytes && state.buildingViewPageIndices.length) {
+      const srcDoc = await PDFLib.PDFDocument.load(state.sourceBytes);
+      const copied = await pdfDoc.copyPages(srcDoc, state.buildingViewPageIndices);
+      copied.forEach((p) => pdfDoc.addPage(p));
+    }
+
+    const outBytes = await pdfDoc.save();
+    const blob = new Blob([outBytes], { type: 'application/pdf' });
+
+    const custName = (data.name || 'contract').trim().replace(/[^a-z0-9]+/gi, '_');
+    const filenamePrefix = activeFiller.name.replace(/[^a-z0-9]+/gi, '_');
+    const filename = `${filenamePrefix}_${custName}.pdf`;
+
+    // Use the platform's save prompt when this page happens to be running
+    // inside the claude.ai artifact viewer; otherwise (a plain saved .html
+    // file opened in any browser) just trigger a normal download.
+    let usedPlatformSave = false;
+    if (typeof window.claude !== 'undefined' && window.claude && window.claude.use) {
+      try {
+        const downloads = await window.claude.use('downloads');
+        if (downloads) {
+          await downloads.save({ filename, data: blob });
+          setStatus('Saved ' + filename + '.');
+          usedPlatformSave = true;
+        }
+      } catch (e) {
+        if (e && e.code === 'declined') { setStatus('Save cancelled.'); usedPlatformSave = true; }
+      }
+    }
+    if (!usedPlatformSave) {
+      fallbackDownload(blob, filename);
+      setStatus('Downloaded ' + filename + '.');
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus('Could not generate the PDF: ' + err.message, true);
+  } finally {
+    $('#generateBtn').disabled = false;
+  }
+}
+
+function fallbackDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: filename, textContent: 'Download ' + filename });
+  a.click();
+  setStatus('Ready — use the download link if it did not start automatically.');
+  $('#fallbackLinks').appendChild(a);
+}
+
+// ---- Hub navigation ----
+
+function renderHub() {
+  const list = $('#fillerList');
+  list.innerHTML = '';
+  for (const filler of FILLERS) {
+    const card = el('button', { type: 'button', className: 'fillerCard' });
+    card.appendChild(el('div', { className: 'fillerEmoji', textContent: filler.emoji }));
+    const textWrap = el('div', { className: 'fillerText' });
+    textWrap.appendChild(el('div', { className: 'fillerName', textContent: filler.name }));
+    textWrap.appendChild(el('div', { className: 'fillerDesc', textContent: filler.description }));
+    card.appendChild(textWrap);
+    card.addEventListener('click', () => openFiller(filler));
+    list.appendChild(card);
+  }
+}
+
+function resetFillerUI() {
+  state = { sourceBytes: null, sourceFilename: '', buildingViewPageIndices: [], numPages: 0, data: null };
+  $('#fileInput').value = '';
+  $('#reviewSection').style.display = 'none';
+  $('#generateBtn').disabled = true;
+  $('#fallbackLinks').innerHTML = '';
+  setStatus('');
+}
+
+function openFiller(filler) {
+  activeFiller = filler;
+  resetFillerUI();
+  $('#fillerTitle').textContent = filler.emoji + ' ' + filler.name;
+  $('#fillerSub').textContent = filler.description + ' Nothing is uploaded anywhere; it all runs locally in this page.';
+  $('#rowsNote').textContent = `This form has ${filler.maxRows} line-item rows total. If a quote has more than that, combine or drop rows here before generating — same as you'd do by hand.`;
+  $('#generateBtn').textContent = 'Generate ' + filler.name + ' PDF';
+  $('#hubView').style.display = 'none';
+  $('#fillerView').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function backToHub() {
+  activeFiller = null;
+  $('#fillerView').style.display = 'none';
+  $('#hubView').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function init() {
+  renderHub();
+  $('#backBtn').addEventListener('click', backToHub);
+
+  setStatus('Loading PDF tools…');
+  $('#fileInput').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (f) handleFile(f);
+  });
+  $('#addRowBtn').addEventListener('click', () => { addLineItemRow({}, -1); updateRowCount(); });
+  $('#generateBtn').addEventListener('click', generatePdf);
+
+  $('#fileInput').disabled = true;
+  const enableWhenReady = () => {
+    if (window.pdfjsLib && window.PDFLib) {
+      $('#fileInput').disabled = false;
+      setStatus('');
+    }
+  };
+  window.addEventListener('pdfjs-ready', enableWhenReady);
+  // Fallback in case the event fires before this listener attaches, or the
+  // libraries were already ready by the time we got here.
+  let tries = 0;
+  const poll = setInterval(() => {
+    enableWhenReady();
+    tries++;
+    if ($('#fileInput').disabled === false || tries > 100) clearInterval(poll);
+  }, 100);
+  setTimeout(() => {
+    if ($('#fileInput').disabled) setStatus('PDF tools are taking a while to load — check your connection, or try reloading.', true);
+  }, 10000);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
