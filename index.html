@@ -623,7 +623,10 @@ async function findBuildingViewPages(pdfDoc) {
     const page = await pdfDoc.getPage(i);
     const content = await page.getTextContent();
     const text = content.items.map((it) => it.str).join(' ').toUpperCase();
-    if (text.includes('BUILDING VIEW')) idxs.push(i - 1); // 0-based for pdf-lib
+    // "BUILDING VIEW" labels the front/right/back/left renderings; the final
+    // overhead diagram page is sometimes captioned differently ("2D LAYOUT")
+    // depending on the manufacturer, so check for either.
+    if (text.includes('BUILDING VIEW') || text.includes('2D LAYOUT')) idxs.push(i - 1); // 0-based for pdf-lib
   }
   return idxs;
 }
