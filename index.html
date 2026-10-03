@@ -331,6 +331,13 @@ function findTableBounds(words) {
       if (botY === null || w.top < botY) botY = w.top;
     }
   }
+  // A continuation/overflow page may not have a "PURCHASE AGREEMENT" footer
+  // below its table at all — if we found the table's top but no closing
+  // marker, just use the rest of the page rather than skipping it.
+  if (topY != null && botY == null) {
+    const maxTop = Math.max(...words.map((w) => w.top), topY + 1);
+    botY = maxTop + 1;
+  }
   return [topY, botY];
 }
 
@@ -469,6 +476,20 @@ async function parseSourceContract(pdfDoc) {
   d.installation_surface = getField(words, 'Installation Surface?', { maxTokens: 2 });
 
   d.line_items = extractLineItems(words);
+
+  // Some manufacturer quotes overflow their own line-item table onto a
+  // second (or third) page before the terms/photos pages. Scan the rest of
+  // the source document for any additional page that has that same
+  // DESCRIPTION/QTY/PRICE table, and pull its rows in too.
+  for (let i = 2; i <= pdfDoc.numPages; i++) {
+    const extraPage = await pdfDoc.getPage(i);
+    const extraWords = await getWordsForPage(extraPage);
+    const [topY, botY] = findTableBounds(extraWords);
+    if (topY == null || botY == null) continue; // not a line-item page — skip (terms, photos, etc.)
+    const moreItems = extractLineItems(extraWords);
+    if (moreItems.length) d.line_items = d.line_items.concat(moreItems);
+  }
+
   return d;
 }
 
