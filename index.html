@@ -796,7 +796,7 @@ function renderReviewForm(data) {
 function renderLineItems(items) {
   const tbody = $('#lineItemsBody');
   tbody.innerHTML = '';
-  items.slice(0, activeFiller.maxRows).forEach((it, i) => addLineItemRow(it, i));
+  items.forEach((it, i) => addLineItemRow(it, i));
   updateRowCount();
 }
 
@@ -823,9 +823,16 @@ function addLineItemRow(it, idx) {
 function updateRowCount() {
   const n = $('#lineItemsBody').children.length;
   const max = activeFiller.maxRows;
-  $('#rowCount').textContent = n + ' / ' + max + ' rows';
-  $('#addRowBtn').disabled = n >= max;
-  $('#rowCount').className = n > max ? 'err' : '';
+  if (n <= max) {
+    $('#rowCount').textContent = n + ' / ' + max + ' rows (page 1)';
+    $('#rowCount').className = '';
+  } else {
+    const extraPages = Math.ceil((n - max) / max);
+    $('#rowCount').textContent = `${n} rows — page 1 (${max}) + ${extraPages} continuation page${extraPages > 1 ? 's' : ''}`;
+    $('#rowCount').className = 'info';
+  }
+  // No cap: beyond maxRows, generatePdf() automatically adds continuation pages.
+  $('#addRowBtn').disabled = false;
 }
 
 function collectFormData() {
@@ -846,16 +853,53 @@ function collectFormData() {
   return data;
 }
 
+function fillFillerForm(form, activeFiller, data, items) {
+  const setText = (fieldName, value) => {
+    if (!value) return;
+    try {
+      const f = form.getTextField(fieldName);
+      f.setText(String(value));
+      f.setFontSize(8);
+    } catch (e) { console.warn('text field missing', fieldName, e); }
+  };
+  const setDropdown = (fieldName, value) => {
+    if (!value) return;
+    try { form.getDropdown(fieldName).select(value); } catch (e) { console.warn('dropdown missing', fieldName, e); }
+  };
+  const setCheck = (fieldName, on) => {
+    try {
+      const f = form.getCheckBox(fieldName);
+      if (on) f.check(); else f.uncheck();
+    } catch (e) { console.warn('checkbox missing', fieldName, e); }
+  };
+
+  const { headerMap, totalsMap, dropdownMap, checkboxes, rowFields } = activeFiller;
+  for (const [key, fname] of Object.entries(headerMap)) setText(fname, data[key]);
+  for (const [key, fname] of Object.entries(totalsMap)) setText(fname, data[key]);
+  for (const [key, fname] of Object.entries(dropdownMap)) setDropdown(fname, data[key]);
+
+  if (data.frame_gauge === '14') { setCheck(checkboxes.gauge14, true); }
+  else if (data.frame_gauge === '12') { setCheck(checkboxes.gauge12, true); }
+  if (data.surface_level === 'yes') setCheck(checkboxes.surfaceYes, true);
+  else if (data.surface_level === 'no') setCheck(checkboxes.surfaceNo, true);
+  if (data.ready_install === 'yes') setCheck(checkboxes.readyYes, true);
+  else if (data.ready_install === 'no') setCheck(checkboxes.readyNo, true);
+  if (data.electricity === 'yes') setCheck(checkboxes.elecYes, true);
+  else if (data.electricity === 'no') setCheck(checkboxes.elecNo, true);
+
+  items.forEach((it, i) => {
+    const [descF, qtyF, priceF] = rowFields[i];
+    setText(descF, it.description);
+    setText(qtyF, it.qty);
+    setText(priceF, it.price);
+  });
+}
+
 async function generatePdf() {
   setStatus('Building the ' + activeFiller.name + ' PDF…');
   $('#generateBtn').disabled = true;
   try {
     const data = collectFormData();
-    if (data.line_items.length > activeFiller.maxRows) {
-      setStatus(`You have more than ${activeFiller.maxRows} line items — this form only has ${activeFiller.maxRows} rows. Please combine or remove rows above before generating.`, true);
-      $('#generateBtn').disabled = false;
-      return;
-    }
 
     if (!window.PDFLib) {
       throw new Error('the PDF-filling library has not finished loading in this browser — reload the page and try again');
@@ -868,48 +912,36 @@ async function generatePdf() {
     } catch (e) {
       throw new Error('could not load the blank ' + activeFiller.name + ' template (' + e.message + ')');
     }
+
+    const maxRows = activeFiller.maxRows;
     const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
     const form = pdfDoc.getForm();
 
-    const setText = (fieldName, value) => {
-      if (!value) return;
-      try {
-        const f = form.getTextField(fieldName);
-        f.setText(String(value));
-        f.setFontSize(8);
-      } catch (e) { console.warn('text field missing', fieldName, e); }
-    };
-    const setDropdown = (fieldName, value) => {
-      if (!value) return;
-      try { form.getDropdown(fieldName).select(value); } catch (e) { console.warn('dropdown missing', fieldName, e); }
-    };
-    const setCheck = (fieldName, on) => {
-      try {
-        const f = form.getCheckBox(fieldName);
-        if (on) f.check(); else f.uncheck();
-      } catch (e) { console.warn('checkbox missing', fieldName, e); }
-    };
+    // First page: the real, interactive form — header, totals, and the
+    // first maxRows line items, exactly as before.
+    fillFillerForm(form, activeFiller, data, data.line_items.slice(0, maxRows));
 
-    const { headerMap, totalsMap, dropdownMap, checkboxes, rowFields } = activeFiller;
-    for (const [key, fname] of Object.entries(headerMap)) setText(fname, data[key]);
-    for (const [key, fname] of Object.entries(totalsMap)) setText(fname, data[key]);
-    for (const [key, fname] of Object.entries(dropdownMap)) setDropdown(fname, data[key]);
+    // Overflow: for every additional batch of up to maxRows items, fill a
+    // fresh copy of the same blank template (so field names never collide
+    // with the first page's), flatten it to static content, and insert that
+    // page right after the previous one. The continuation page repeats the
+    // customer/building header so it's self-identifying if ever separated
+    // from page 1.
+    let overflow = data.line_items.slice(maxRows);
+    let insertAt = 1; // the "Process of Order" page is index 0
+    while (overflow.length > 0) {
+      const pageItems = overflow.slice(0, maxRows);
+      overflow = overflow.slice(maxRows);
 
-    if (data.frame_gauge === '14') { setCheck(checkboxes.gauge14, true); }
-    else if (data.frame_gauge === '12') { setCheck(checkboxes.gauge12, true); }
-    if (data.surface_level === 'yes') setCheck(checkboxes.surfaceYes, true);
-    else if (data.surface_level === 'no') setCheck(checkboxes.surfaceNo, true);
-    if (data.ready_install === 'yes') setCheck(checkboxes.readyYes, true);
-    else if (data.ready_install === 'no') setCheck(checkboxes.readyNo, true);
-    if (data.electricity === 'yes') setCheck(checkboxes.elecYes, true);
-    else if (data.electricity === 'no') setCheck(checkboxes.elecNo, true);
+      const continuationDoc = await PDFLib.PDFDocument.load(templateBytes);
+      const continuationForm = continuationDoc.getForm();
+      fillFillerForm(continuationForm, activeFiller, data, pageItems);
+      continuationForm.flatten();
 
-    data.line_items.slice(0, activeFiller.maxRows).forEach((it, i) => {
-      const [descF, qtyF, priceF] = rowFields[i];
-      setText(descF, it.description);
-      setText(qtyF, it.qty);
-      setText(priceF, it.price);
-    });
+      const [continuationPage] = await pdfDoc.copyPages(continuationDoc, [0]);
+      pdfDoc.insertPage(insertAt, continuationPage);
+      insertAt += 1;
+    }
 
     // Append building-view / rendering pages from the source PDF, unchanged.
     if (state.sourceBytes && state.buildingViewPageIndices.length) {
@@ -992,7 +1024,7 @@ function openFiller(filler) {
   resetFillerUI();
   $('#fillerTitle').textContent = filler.emoji + ' ' + filler.name;
   $('#fillerSub').textContent = filler.description + ' Nothing is uploaded anywhere; it all runs locally in this page.';
-  $('#rowsNote').textContent = `This form has ${filler.maxRows} line-item rows total. If a quote has more than that, combine or drop rows here before generating — same as you'd do by hand.`;
+  $('#rowsNote').textContent = `This form has ${filler.maxRows} rows per page. Add as many rows as the quote needs — anything past ${filler.maxRows} automatically continues on an extra page (with the customer/building info repeated) right after page 1.`;
   $('#generateBtn').textContent = 'Generate ' + filler.name + ' PDF';
   $('#hubView').style.display = 'none';
   $('#fillerView').style.display = 'block';
